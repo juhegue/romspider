@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # @Juhegue
 # jue abr 23 08:29:55 CEST 2020
@@ -86,7 +87,7 @@ class PlanetemuSpider(object):
                     fname = os.path.join(path, name)
                     if not os.path.isfile(fname):
                         with open(fname, 'wb') as f:
-                            for chunk in response.iter_content(chunk_size=10024):
+                            for chunk in response.iter_content(chunk_size=10240):
                                 if chunk:
                                     f.write(chunk)
 
