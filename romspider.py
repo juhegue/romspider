@@ -47,7 +47,7 @@ class Soup(object):
 
 class PlanetemuSpider(object):
 
-    def __init__(self, web, url, sufijo, path):
+    def __call__(self, web, url, sufijo, path):
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
         suop = Soup()
@@ -60,6 +60,7 @@ class PlanetemuSpider(object):
 
         for n, href in enumerate(hrefs):
             print('[{:03d}-{:03d}]{}'.format(len(hrefs), n, href), end='')
+            fname = None
             try:
                 sopa = suop(url=web + href)
                 action = sopa.find('form', {'name': 'MyForm'}).get('action')
@@ -92,8 +93,16 @@ class PlanetemuSpider(object):
                                     f.write(chunk)
 
                     print(':', name)
+            except KeyboardInterrupt:
+                if fname:
+                    os.remove(fname)
+                return False
             except:
+                if fname:
+                    os.remove(fname)
                 print(': ERROR')
+
+        return True
 
 
 if __name__ == '__main__':
@@ -105,5 +114,7 @@ if __name__ == '__main__':
 
         url = '/roms/{}'.format(rom)
         sufijo = '/rom/{}'.format(rom)
-        PlanetemuSpider(web, url, sufijo, rom)
+        spider = PlanetemuSpider()
+        if not spider(web, url, sufijo, rom):
+            break
 
