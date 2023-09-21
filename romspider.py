@@ -2,32 +2,34 @@
 # -*- coding: utf-8 -*-
 # @Juhegue
 # jue abr 23 08:29:55 CEST 2020
+# jue 21 sep 2023 08:33:32 CEST
 
 import os
-import urllib.request, urllib.parse, urllib.error
+from urllib.request import Request, urlopen
 from bs4 import BeautifulSoup
 import ssl
 import requests
 import re
 import urllib3
+import zipfile
 
 PLANETEMU = [
     'atari-2600',
-    'atari-5200',
-    'atari-7800',
-    'coleco-colecovision',
-    'sega-game-gear',
-    'mattel-intellivision',
-    'atari-jaguar',
-    'atari-lynx',
-    'sega-master-system',
-    'sega-mega-drive',
-    'snk-neo-geo-pocket',
-    'snk-neo-geo-cd-world',
-    'mame-roms',
-    'nec-pc-engine',
-    'sony-playstation-games-europe',
-    'panasonic-3do-interactive-multiplayer-games',  # No van en la raspberry PI
+    # 'atari-5200',
+    # 'atari-7800',
+    # 'coleco-colecovision',
+    # 'sega-game-gear',
+    # 'mattel-intellivision',
+    # 'atari-jaguar',
+    # 'atari-lynx',
+    # 'sega-master-system',
+    # 'sega-mega-drive',
+    # 'snk-neo-geo-pocket',
+    # 'snk-neo-geo-cd-world',
+    # 'mame-roms',
+    # 'nec-pc-engine',
+    # 'sony-playstation-games-europe',
+    # 'panasonic-3do-interactive-multiplayer-games',  # No van en la raspberry PI
 ]
 
 
@@ -41,7 +43,11 @@ class Soup(object):
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
 
-        html = urllib.request.urlopen(url, context=ctx).read()
+        req = Request(
+            url=url,
+            headers={'User-Agent': 'Mozilla/5.0'}
+        )
+        html = urlopen(req).read()
         return BeautifulSoup(html, 'html.parser')
 
 
@@ -50,57 +56,73 @@ class PlanetemuSpider(object):
     def __call__(self, web, url, sufijo, path):
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+        weburl = web + url
         suop = Soup()
-        sopa = suop(url=web + url)
+        sopa = suop(url=weburl)
         hrefs = list()
         for tag in sopa('a'):
             href = tag.get('href', None)
             if href and href.startswith(sufijo):
                 hrefs.append(href)
 
-        for n, href in enumerate(hrefs):
-            print('[{:03d}-{:03d}]{}'.format(len(hrefs), n, href), end='')
+        for m, href in enumerate(hrefs):
+            print('[{:03d}-{:03d}]{}'.format(len(hrefs), m, href))
             fname = None
             try:
-                sopa = suop(url=web + href)
-                action = sopa.find('form', {'name': 'MyForm'}).get('action')
-                id = sopa.find('input', {'name': 'id'}).get('value')
-                download = sopa.find('input', {'name': 'download'}).get('value')
+                webhref = web + href
+                sopa = suop(url=webhref)
 
-                data = {
-                    'id': id,
-                    'download': download,
-                }
-                form = web + action
-                with requests.post(form, data=data, verify=False, stream=True) as response:
-                    response.raise_for_status()
-                    content = response.headers.get('content-disposition')
+                sufijorom = sufijo.replace('roms', 'rom')
+                roms = list()
+                for tag in sopa('a'):
+                    href = tag.get('href', None)
+                    if href and href.startswith(sufijorom):
+                        roms.append(href)
 
-                    name = None
-                    if content:
-                        name = re.findall("filename=(.+)", content)
-                        if name:
-                            name = name[0].replace('"', '')
+                for n, href in enumerate(roms):
+                    webform = web + href
+                    formsopa = suop(url=webform)
 
-                    if not name:
-                        name = href.split('/')[-1] + '.zip'
+                    action = formsopa.find('form', {'name': 'MyForm'}).get('action')
+                    id = formsopa.find('input', {'name': 'id'}).get('value')
+                    download = formsopa.find('input', {'name': 'download'}).get('value')
 
-                    fname = os.path.join(path, name)
-                    if not os.path.isfile(fname):
-                        with open(fname, 'wb') as f:
-                            for chunk in response.iter_content(chunk_size=10240):
-                                if chunk:
-                                    f.write(chunk)
+                    data = {
+                        'id': id,
+                        'download': download,
+                    }
+                    form = web + action
+                    with requests.post(form, data=data, verify=False, stream=True) as response:
+                        response.raise_for_status()
+                        content = response.headers.get('content-disposition')
 
-                    print(':', name)
+                        name = None
+                        if content:
+                            name = re.findall("filename=(.+)", content)
+                            if name:
+                                name = name[0].replace('"', '')
+
+                        if not name:
+                            name = href.split('/')[-1] + '.zip'
+
+                        fname = os.path.join(path, name)
+                        if not os.path.isfile(fname):
+                            with open(fname, 'wb') as f:
+                                for chunk in response.iter_content(chunk_size=10240):
+                                    if chunk:
+                                        f.write(chunk)
+                            if not zipfile.is_zipfile(fname):
+                                os.remove(fname)
+                                name += ' corrupto'
+                        print('  :', name)
             except KeyboardInterrupt:
                 if fname:
                     os.remove(fname)
                 return False
-            except:
+            except Exception as e:
                 if fname:
                     os.remove(fname)
-                print(': ERROR')
+                print('  ERROR')
 
         return True
 
@@ -112,9 +134,10 @@ if __name__ == '__main__':
         if not os.path.isdir(rom):
             os.mkdir(rom)
 
-        url = '/roms/{}'.format(rom)
-        sufijo = '/rom/{}'.format(rom)
+        url = '/machine/{}'.format(rom)
+        sufijo = '/roms/{}'.format(rom)
         spider = PlanetemuSpider()
         if not spider(web, url, sufijo, rom):
             break
+
 
