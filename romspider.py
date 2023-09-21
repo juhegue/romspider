@@ -68,21 +68,22 @@ class PlanetemuSpider(object):
         for m, href in enumerate(hrefs):
             print('[{:03d}-{:03d}]{}'.format(len(hrefs), m, href))
             fname = None
-            try:
-                webhref = web + href
-                sopa = suop(url=webhref)
 
-                sufijorom = sufijo.replace('roms', 'rom')
-                roms = list()
-                for tag in sopa('a'):
-                    href = tag.get('href', None)
-                    if href and href.startswith(sufijorom):
-                        roms.append(href)
+            webhref = web + href
+            sopa = suop(url=webhref)
 
-                for n, href in enumerate(roms):
-                    webform = web + href
-                    formsopa = suop(url=webform)
+            sufijorom = sufijo.replace('roms', 'rom')
+            roms = list()
+            for tag in sopa('a'):
+                href = tag.get('href', None)
+                if href and href.startswith(sufijorom):
+                    roms.append(href)
 
+            for n, href in enumerate(roms):
+                webform = web + href
+                formsopa = suop(url=webform)
+                try:
+                    name = None
                     action = formsopa.find('form', {'name': 'MyForm'}).get('action')
                     id = formsopa.find('input', {'name': 'id'}).get('value')
                     download = formsopa.find('input', {'name': 'download'}).get('value')
@@ -96,7 +97,6 @@ class PlanetemuSpider(object):
                         response.raise_for_status()
                         content = response.headers.get('content-disposition')
 
-                        name = None
                         if content:
                             name = re.findall("filename=(.+)", content)
                             if name:
@@ -115,14 +115,15 @@ class PlanetemuSpider(object):
                                 os.remove(fname)
                                 name += ' corrupto'
                         print('  :', name)
-            except KeyboardInterrupt:
-                if fname:
-                    os.remove(fname)
-                return False
-            except Exception as e:
-                if fname:
-                    os.remove(fname)
-                print('  ERROR')
+                except KeyboardInterrupt:
+                    if fname:
+                        os.remove(fname)
+                    return False
+
+                except Exception as e:
+                    if fname:
+                        os.remove(fname)
+                    print(f'{e}  ERROR')
 
         return True
 
