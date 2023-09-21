@@ -15,21 +15,21 @@ import zipfile
 
 PLANETEMU = [
     'atari-2600',
-    # 'atari-5200',
-    # 'atari-7800',
-    # 'coleco-colecovision',
-    # 'sega-game-gear',
-    # 'mattel-intellivision',
-    # 'atari-jaguar',
-    # 'atari-lynx',
-    # 'sega-master-system',
-    # 'sega-mega-drive',
-    # 'snk-neo-geo-pocket',
-    # 'snk-neo-geo-cd-world',
-    # 'mame-roms',
-    # 'nec-pc-engine',
-    # 'sony-playstation-games-europe',
-    # 'panasonic-3do-interactive-multiplayer-games',  # No van en la raspberry PI
+    'atari-5200',
+    'atari-7800',
+    'coleco-colecovision',
+    'sega-game-gear',
+    'mattel-intellivision',
+    'atari-jaguar',
+    'atari-lynx',
+    'sega-master-system',
+    'sega-mega-drive',
+    'snk-neo-geo-pocket',
+    'snk-neo-geo-cd-world',
+    'mame-roms',
+    'nec-pc-engine',
+    'sony-playstation-games-europe',
+    'panasonic-3do-interactive-multiplayer-games',  # No van en la raspberry PI
 ]
 
 
@@ -139,5 +139,4 @@ if __name__ == '__main__':
         spider = PlanetemuSpider()
         if not spider(web, url, sufijo, rom):
             break
-
 
