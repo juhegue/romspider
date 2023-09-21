@@ -7,7 +7,6 @@
 import os
 from urllib.request import Request, urlopen
 from bs4 import BeautifulSoup
-import ssl
 import requests
 import re
 import urllib3
@@ -17,19 +16,28 @@ PLANETEMU = [
     'atari-2600',
     'atari-5200',
     'atari-7800',
-    'coleco-colecovision',
-    'sega-game-gear',
-    'mattel-intellivision',
-    'atari-jaguar',
-    'atari-lynx',
-    'sega-master-system',
-    'sega-mega-drive',
-    'snk-neo-geo-pocket',
-    'snk-neo-geo-cd-world',
-    'mame-roms',
-    'nec-pc-engine',
-    'sony-playstation-games-europe',
-    'panasonic-3do-interactive-multiplayer-games',  # No van en la raspberry PI
+    'colecovision',
+    'game-boy',
+    'game-gear',
+    'gba',
+    'intellivision',
+    'jaguar',
+    'lynx',
+    'master-system',
+    'mega-drive',
+    'neo-geo-pocket',
+    'neo-geo-cd',
+    'nes',
+    'nintendo-64',
+    'odyssey',
+    'pc-engine',
+    'playstation',
+    'saturn',
+    'super-nes',
+    'virtual-boy',
+    'wonderswan',
+    'mame',
+    'non-mame',
 ]
 
 
@@ -37,12 +45,6 @@ class Soup(object):
 
     def __call__(self, *args, **kwargs):
         url = kwargs.get('url')
-
-        # Ignora error de certificado SSL
-        ctx = ssl.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
-
         req = Request(
             url=url,
             headers={'User-Agent': 'Mozilla/5.0'}
@@ -62,22 +64,23 @@ class PlanetemuSpider(object):
         hrefs = list()
         for tag in sopa('a'):
             href = tag.get('href', None)
-            if href and href.startswith(sufijo):
+            if href and href.startswith('/roms/'):
                 hrefs.append(href)
 
-        for m, href in enumerate(hrefs):
-            print('[{:03d}-{:03d}]{}'.format(len(hrefs), m, href))
+        for m, hrefrom in enumerate(hrefs):
             fname = None
 
-            webhref = web + href
+            webhref = web + hrefrom
             sopa = suop(url=webhref)
 
-            sufijorom = sufijo.replace('roms', 'rom')
+            sufijorom = hrefrom.replace('roms', 'rom')
             roms = list()
             for tag in sopa('a'):
                 href = tag.get('href', None)
                 if href and href.startswith(sufijorom):
                     roms.append(href)
+
+            print('[{:04d}-{:03d}]{}'.format(len(roms), m+1, hrefrom))
 
             for n, href in enumerate(roms):
                 webform = web + href
@@ -105,6 +108,9 @@ class PlanetemuSpider(object):
                         if not name:
                             name = href.split('/')[-1] + '.zip'
 
+                        if m == 0 and not os.path.isdir(path):
+                            os.mkdir(rom)
+
                         fname = os.path.join(path, name)
                         if not os.path.isfile(fname):
                             with open(fname, 'wb') as f:
@@ -114,15 +120,17 @@ class PlanetemuSpider(object):
                             if not zipfile.is_zipfile(fname):
                                 os.remove(fname)
                                 name += ' corrupto'
-                        print('  :', name)
+                        print('  [{:04d}] {}'.format(n + 1, name))
+
                 except KeyboardInterrupt:
-                    if fname:
+                    if fname and os.path.isfile(fname):
                         os.remove(fname)
                     return False
 
                 except Exception as e:
-                    if fname:
+                    if fname and os.path.isfile(fname):
                         os.remove(fname)
+
                     print(f'{e}  ERROR')
 
         return True
@@ -132,9 +140,6 @@ if __name__ == '__main__':
     web = 'https://www.planetemu.net'
 
     for rom in PLANETEMU:
-        if not os.path.isdir(rom):
-            os.mkdir(rom)
-
         url = '/machine/{}'.format(rom)
         sufijo = '/roms/{}'.format(rom)
         spider = PlanetemuSpider()
